@@ -27,7 +27,7 @@ Use a **fine-grained personal access token**.
 5. Generate the token and paste it into the app.
 
 > [!CAUTION]
-> Note: the token can edit files in the repos you grant it access to, so keep the URL containing `?pat=...` as secret. Actually.. probably you shouldnt use this app at all. I dont think its a good idea to go around the internet and paste your PAT into random github projects. Maybe I can even hack your repo now. Thats no so good.
+> Note: the token can edit files in the repos you grant it access to, so keep the URL containing `?pat=...` as secret. Actually.. probably you shouldnt use this app at all. I dont think its a good idea to go around the internet and paste your PAT into random github projects. Maybe I can even hack your repo now. Thats not so good.
 
 ## Use
 
