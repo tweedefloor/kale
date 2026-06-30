@@ -1,6 +1,6 @@
 
 
-# Kale
+# 🥬 Kale
 
 Kale is a very small web page for editing one file in a GitHub repo.
 
