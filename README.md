@@ -1,3 +1,5 @@
+
+
 # Kale
 
 Kale is a very small web page for editing one file in a GitHub repo.
@@ -6,6 +8,7 @@ You paste:
 
 - a GitHub personal access token
 - a GitHub file link, like `https://github.com/tweedefloor/kale/blob/main/README.md`
+
 
 The app loads the file, lets you edit the text, and commits the change back to the same branch.
 
@@ -23,11 +26,14 @@ Use a **fine-grained personal access token**.
   - **Metadata**: `Read-only` should already be included
 5. Generate the token and paste it into the app.
 
-Note: the token can edit files in the repos you grant it access to, so keep the URL containing `?pat=...` as secret.
+> [!CAUTION]
+> Note: the token can edit files in the repos you grant it access to, so keep the URL containing `?pat=...` as secret.
 
 ## Use
 
 Open `index.html` in a browser or host it as a static website.
 
 Paste the token and GitHub file link, load the file, edit it, then click commit.
+
+Once you pasted them, the url can be bookmarked like `file:///Users/cf/dev/tweedefloor/kale/index.html?pat=<xxx>&repo=<xxx>`
 
