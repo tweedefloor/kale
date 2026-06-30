@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kale</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 16px; line-height: 1.4; }
+    label { display: block; margin-top: 16px; font-weight: 600; }
+    input, textarea, button { box-sizing: border-box; width: 100%; margin-top: 6px; padding: 10px; font: inherit; }
+    textarea { min-height: 420px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    button { cursor: pointer; margin-top: 16px; }
+    #status { margin-top: 16px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>🥬 Kale</h1>
+
+  <label for="pat">PAT</label>
+  <input id="pat" type="password" autocomplete="off" placeholder="github_pat_...">
+
+  <label for="repo">GitHub file link</label>
+  <input id="repo" type="url" placeholder="https://github.com/<name>/test/blob/main/<file>">
+
+  <button id="load">Load file</button>
+
+  <button id="commit">Commit change</button>
+  <p id="status"></p>
+
+  <label for="content">File content</label>
+
+  <textarea id="content" spellcheck="false" placeholder="Load a file to edit it here"></textarea>
+
+
+  <script>
+    const patInput = document.getElementById("pat");
+    const repoInput = document.getElementById("repo");
+    const contentInput = document.getElementById("content");
+    const statusEl = document.getElementById("status");
+    const loadButton = document.getElementById("load");
+    const commitButton = document.getElementById("commit");
+
+    let fileInfo = null;
+
+    const params = new URLSearchParams(window.location.search);
+    patInput.value = params.get("pat") || "";
+    repoInput.value = params.get("repo") || "";
+
+    function setStatus(message) {
+      statusEl.textContent = message;
+    }
+
+    function syncUrl() {
+      const nextParams = new URLSearchParams();
+      if (patInput.value) nextParams.set("pat", patInput.value);
+      if (repoInput.value) nextParams.set("repo", repoInput.value);
+      const query = nextParams.toString();
+      history.replaceState(null, "", query ? `?${query}` : location.pathname);
+    }
+
+    function parseGithubFileUrl(value) {
+      const url = new URL(value);
+      const parts = url.pathname.split("/").filter(Boolean);
+      const blobIndex = parts.indexOf("blob");
+
+      if (url.hostname !== "github.com" || blobIndex !== 2 || parts.length < 5) {
+        throw new Error("Use a GitHub file URL like https://github.com/owner/repo/blob/main/README.md");
+      }
+
+      return {
+        owner: parts[0],
+        repo: parts[1],
+        branch: parts[3],
+        path: parts.slice(4).join("/")
+      };
+    }
+
+    function decodeBase64(text) {
+      const bytes = Uint8Array.from(atob(text.replace(/\n/g, "")), char => char.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
+    }
+
+    function encodeBase64(text) {
+      const bytes = new TextEncoder().encode(text);
+      let binary = "";
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      return btoa(binary);
+    }
+
+    async function github(path, options = {}) {
+      const response = await fetch(`https://api.github.com${path}`, {
+        ...options,
+        headers: {
+          "Accept": "application/vnd.github+json",
+          "Authorization": `Bearer ${patInput.value}`,
+          "X-GitHub-Api-Version": "2022-11-28",
+          ...(options.headers || {})
+        }
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || `GitHub returned ${response.status}`);
+      return data;
+    }
+
+    async function loadFile() {
+      syncUrl();
+      setStatus("Loading...");
+
+      const parsed = parseGithubFileUrl(repoInput.value);
+      const apiPath = `/repos/${parsed.owner}/${parsed.repo}/contents/${encodeURIComponent(parsed.path).replaceAll("%2F", "/")}?ref=${encodeURIComponent(parsed.branch)}`;
+      const data = await github(apiPath);
+
+      if (data.type !== "file") throw new Error("The GitHub URL must point to a file.");
+
+      fileInfo = { ...parsed, sha: data.sha };
+      contentInput.value = decodeBase64(data.content);
+      setStatus(`Loaded ${parsed.owner}/${parsed.repo}/${parsed.path} from ${parsed.branch}`);
+    }
+
+    async function commitFile() {
+      if (!fileInfo) await loadFile();
+      setStatus("Committing...");
+
+      const apiPath = `/repos/${fileInfo.owner}/${fileInfo.repo}/contents/${encodeURIComponent(fileInfo.path).replaceAll("%2F", "/")}`;
+      const data = await github(apiPath, {
+        method: "PUT",
+        body: JSON.stringify({
+          message: `Update ${fileInfo.path}`,
+          content: encodeBase64(contentInput.value),
+          sha: fileInfo.sha,
+          branch: fileInfo.branch
+        })
+      });
+
+      fileInfo.sha = data.content.sha;
+      setStatus(`Committed: ${data.commit.html_url}`);
+    }
+
+    patInput.addEventListener("input", syncUrl);
+    repoInput.addEventListener("input", syncUrl);
+    loadButton.addEventListener("click", () => loadFile().catch(error => setStatus(error.message)));
+    commitButton.addEventListener("click", () => commitFile().catch(error => setStatus(error.message)));
+
+    if (patInput.value && repoInput.value) {
+      loadFile().catch(error => setStatus(error.message));
+    }
+  </script>
+</body>
+</html>
